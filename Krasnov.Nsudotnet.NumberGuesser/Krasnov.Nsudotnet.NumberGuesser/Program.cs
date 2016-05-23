@@ -29,8 +29,6 @@ namespace Task1
     {
         private string _name;
         private int _number;    //nubmer [0..100]
-        public string Name { get; set; }
-        public int Number { get; set; }
 
         public void StartGame()
         {
