@@ -1,8 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 /*
  * Программа при запуске запрашивает rss url и мыло пользователя.
  * rss проверяется каждые 10 секунд на наличие новых новостей.
