@@ -1,5 +1,4 @@
-﻿
-using System;
+﻿using System;
 using System.IO;
 using System.Security.Cryptography;
 
@@ -11,21 +10,33 @@ namespace Enigma
         private SymmetricAlgorithm _algorithm;
         private void Encrypt(CommandLineParser parser)
         {
-            _algorithm.GenerateIV();
-            _algorithm.GenerateKey();
-            ICryptoTransform encryptor = _algorithm.CreateEncryptor();
-            using (FileStream inputFileStream = new FileStream(parser.InputFileName, FileMode.Open, FileAccess.Read))
+            using (_algorithm = ChooseEncryptAlg(parser.Algorithm))
             {
-                using (FileStream outputFileStream = new FileStream( parser.OutputFileName,FileMode.Create,FileAccess.Write))
+                _algorithm.GenerateIV();
+                _algorithm.GenerateKey();
+                using (FileStream inputFileStream = new FileStream(parser.InputFileName, FileMode.Open, FileAccess.Read)
+                    )
                 {
-                    using ( CryptoStream cryptoStream = new CryptoStream(outputFileStream, encryptor , CryptoStreamMode.Write))
+                    using (
+                        FileStream outputFileStream = new FileStream(parser.OutputFileName, FileMode.Create,
+                            FileAccess.Write))
                     {
-                        inputFileStream.CopyTo(cryptoStream);
-                    }
-                    using (BinaryWriter keyWriter = new BinaryWriter(File.Open(parser.KeyFileName, FileMode.Create, FileAccess.Write)))
-                    {
-                        keyWriter.Write(Convert.ToBase64String(_algorithm.Key));
-                        keyWriter.Write(Convert.ToBase64String(_algorithm.IV));
+                        using (ICryptoTransform encryptor = _algorithm.CreateEncryptor())
+                        {
+                            using (
+                                CryptoStream cryptoStream = new CryptoStream(outputFileStream, encryptor,
+                                    CryptoStreamMode.Write))
+                            {
+                                inputFileStream.CopyTo(cryptoStream);
+                            }
+                        }
+                        using (
+                            BinaryWriter keyWriter =
+                                new BinaryWriter(File.Open(parser.KeyFileName, FileMode.Create, FileAccess.Write)))
+                        {
+                            keyWriter.Write(Convert.ToBase64String(_algorithm.Key));
+                            keyWriter.Write(Convert.ToBase64String(_algorithm.IV));
+                        }
                     }
                 }
             }
@@ -34,31 +45,37 @@ namespace Enigma
 
         private void Decrypt(CommandLineParser parser)
         {
-            using (FileStream inputFileStream = new FileStream(parser.InputFileName, FileMode.Open, FileAccess.Read))
+            using (_algorithm = ChooseEncryptAlg(parser.Algorithm))
             {
-                using (
-                    BinaryReader keyReader =
-                        new BinaryReader(File.Open(parser.KeyFileName, FileMode.Open, FileAccess.Read)))
+                using (FileStream inputFileStream = new FileStream(parser.InputFileName, FileMode.Open, FileAccess.Read)
+                    )
                 {
-                    _algorithm.Key = Convert.FromBase64String(keyReader.ReadString());
-                    _algorithm.IV = Convert.FromBase64String(keyReader.ReadString());
-                }
-                using (ICryptoTransform decryptor = _algorithm.CreateDecryptor())
-                {
-                    using (CryptoStream cryptoStream = new CryptoStream(inputFileStream, decryptor, CryptoStreamMode.Read))
+                    using (
+                        BinaryReader keyReader =
+                            new BinaryReader(File.Open(parser.KeyFileName, FileMode.Open, FileAccess.Read)))
+                    {
+                        _algorithm.Key = Convert.FromBase64String(keyReader.ReadString());
+                        _algorithm.IV = Convert.FromBase64String(keyReader.ReadString());
+                    }
+                    using (ICryptoTransform decryptor = _algorithm.CreateDecryptor())
                     {
                         using (
-                            FileStream outputFileStream = new FileStream(parser.OutputFileName, FileMode.Create,
-                                FileAccess.Write))
+                            CryptoStream cryptoStream = new CryptoStream(inputFileStream, decryptor,
+                                CryptoStreamMode.Read))
                         {
-                            cryptoStream.CopyTo(outputFileStream);
+                            using (
+                                FileStream outputFileStream = new FileStream(parser.OutputFileName, FileMode.Create,
+                                    FileAccess.Write))
+                            {
+                                cryptoStream.CopyTo(outputFileStream);
+                            }
                         }
                     }
                 }
             }
         }
 
-        private void ChooseMode(CommandLineParser parser)
+        public void ChooseMode(CommandLineParser parser)
         {
             switch (parser.Encrypt)
             {
@@ -71,24 +88,21 @@ namespace Enigma
             }
         }
 
-        public void ChooseEncryptAlg(CommandLineParser parser)
+        private SymmetricAlgorithm ChooseEncryptAlg(string algorithm)
         {
-            switch (parser.Algorithm)
+            switch (algorithm)
             {
                 case "aes":
-                    _algorithm = new AesManaged();
-                    break;
+                    return new AesManaged();
                 case "des":
                     _algorithm = new DESCryptoServiceProvider();
                     break;
                 case "rc2":
-                    _algorithm = new RC2CryptoServiceProvider();
-                    break;
+                    return new RC2CryptoServiceProvider();
                 case "rijndael":
-                    _algorithm = new RijndaelManaged();
-                    break;
+                    return new RijndaelManaged();
             }
-            ChooseMode(parser);
+            return null;
         }
     }
 }
