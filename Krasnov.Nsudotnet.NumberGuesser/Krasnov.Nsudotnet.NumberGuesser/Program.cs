@@ -15,10 +15,8 @@ namespace Task1
 
 
             Game game = new Game();
-            //            int beginTime = (int)DateTime.Now.Second;
             DateTime startTime = DateTime.Now;
             game.StartGame();
-            //            int endTime = (int)DateTime.Now.Second; 
             TimeSpan spentTime = DateTime.Now - startTime;
             Console.WriteLine("It took {0} minutes", spentTime.TotalMinutes);
             Console.ReadLine();
@@ -27,20 +25,13 @@ namespace Task1
 
     class Game
     {
-        private string _name;
-        private int _number;    //nubmer [0..100]
+        private string _name = null;
+        private int _number = 0;    //nubmer [0..100]
 
         public void StartGame()
         {
             Console.WriteLine("Please, enter your name:");
-            try
-            {
-                _name = Console.ReadLine();
-            }
-            catch (Exception)
-            {
-
-            }
+            while(String.IsNullOrEmpty(_name = Console.ReadLine()));
             Random rand = new Random();
             _number = rand.Next(0, 100);
             Console.WriteLine("Game started!!!");
@@ -49,14 +40,6 @@ namespace Task1
 
         public void GameAlg()
         {
-            //            string[] insults = new string[] {"{0}, если бы мой попугай знал на 10 слов меньше, то он все равно был бы умнее тебя. Мой попугай знает 9 слов... ",
-            //                                            "{0}, есть такой покемон \"Слоупок\" называется, ты случайно не его родственник? ",
-            //                                            "{0}, еще пару попыток, и количество твоих попыток будет всего в 10 раз больше общего количества вариантов :(",
-            //                                            "{0}, ты тупой?",
-            //                                            "Ты тупой {0}.",
-            //                                            "{0}, у тебя очень хорошо получается(нет)",
-            //                                            "{0}, ходят слухи, что тот кто не угадал с 4 попытки полный неудачник, как думаешь сколько у тебя было попыток?" };
-
             string[] insults = new string[]
             {
                 "{0}, you are doing great (no)",
@@ -76,9 +59,9 @@ namespace Task1
                 {
                     Console.WriteLine("Enter your number:");
                     number = Console.ReadLine();
-                    try
-                    {
-                        int number2 = Int32.Parse(number);
+                    int number2;
+                    if(Int32.TryParse(number, out number2))
+                    { 
                         arrayTries[iterations] = number2;
                         iterations++;
                         if (_number > number2)
@@ -112,7 +95,7 @@ namespace Task1
                         }
 
                     }
-                    catch (Exception)
+                    else
                     {
                         if (number.Equals("q"))
                         {
