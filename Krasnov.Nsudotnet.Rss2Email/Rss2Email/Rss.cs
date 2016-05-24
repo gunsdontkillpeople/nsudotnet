@@ -1,170 +1,97 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Text;
 using System.Xml;
+using System.Xml.Serialization;
 
 namespace Rss2Email
 {
-    class Rss
-    {
+    [Serializable]
+        [XmlRoot("rss")]
+        public class RssRoot
+        {
+            [XmlElement("channel")]
+            public ChannelClass Channel { get; set; }
+        }
+
+        [Serializable]
         public class ChannelClass
         {
-            private string _title;
-            public string Title
-            {
-                get { return _title; }
-                set { _title = value; }
-            }
-
-            private string _description;
-            public string Description
-            {
-                get { return _description; }
-                set { _description = value; }
-            }
-
-
-            private string _link;
-            public string Link
-            {
-                    get { return _link; }
-                    set { _link = value; }
-            }
+            [XmlElement("item")]
+            public List<Item> Items { get; set; }
         }
 
-        public class Item
+        [Serializable]
+        public class Item : IComparable<Item>
         {
-            private string _title;
-            public string Title
+            [XmlElement("title")]
+            public string Title { get; set; }
+            
+            [XmlElement("description")]
+            public string Description { get; set; }
+
+            [XmlElement("link")]
+            public string Link { get; set; }
+
+            [XmlElement("copyright")]
+            public string CopyRight { get; set; }
+
+            [XmlElement("pubDate")]
+            public string PubDate { get; set; }
+
+            public int CompareTo(Item other)
             {
-                get { return _title; }
-                set { _title = value; }
+                return DateTime.Parse(PubDate).CompareTo(DateTime.Parse(other.PubDate));
             }
-
-            private string _description;
-            public string Description
-            {
-                get { return _description; }
-                set { _description = value; }
-            }
-
-            private string _link;
-            public string Link
-            {
-                get { return _link; }
-                set { _link = value; }
-            }
-
-            private string _copyright;
-            public string CopyRight
-            {
-                get { return _copyright; }
-                set { _copyright = value; }
-            }
-
-
         }
-
-        private Item[] _articles;
-        public Item[] Articles
-        {
-            get { return _articles;}
-            set { _articles = value; }
-        }
-
-        private ChannelClass _channel;
-        public ChannelClass Channel
-        {
-            get { return Channel; }
-            set { Channel = value; }
-        }
-
+    public class Rss
+    {
+        private XmlSerializer _xmlSerializer;
         private DateTime _lastMessageDate;
-        private int _numberNewArticles;
+        private List<Item> _newMessages;
+        private int _checkFirstIter = 0;
 
         public Rss()
         {
-            _channel = new ChannelClass();
-            _lastMessageDate = DateTime.Now;
-            _numberNewArticles = 0;
-            _articles = new Item[3];
+
+            _newMessages = new List<Item>();
         }
 
 
         public void ParseArticles(string sourceURL)
         {
-            try
+            _xmlSerializer = new XmlSerializer(typeof(RssRoot));
+            using (XmlReader rssReader = XmlReader.Create(sourceURL))
             {
-                XmlDocument xml = new XmlDocument();
-                xml.Load(sourceURL);
-                XmlNode mainNode = xml.DocumentElement;
-                XmlNodeList nodesList = mainNode.ChildNodes;
-
-                foreach (XmlNode channel in nodesList)
+                RssRoot xml= (RssRoot) _xmlSerializer.Deserialize(rssReader);
+                List<Item> nodesList = xml.Channel.Items;
+                nodesList.Sort();
+                nodesList.Reverse();
+                if (_checkFirstIter == 0)
                 {
-                    foreach (XmlNode channelItem in channel)
+                    _lastMessageDate = DateTime.Parse(nodesList[nodesList.Count-1].PubDate);
+                }
+                foreach (var node in nodesList)
+                {
+                    if (DateTime.Parse(node.PubDate) > _lastMessageDate)
                     {
-                        switch (channelItem.Name)
-                        {
-                            case "title":
-                                _channel.Title = channelItem.InnerText;
-                                break;
-                            case "description":
-                                _channel.Description = channelItem.InnerText;
-                                break;
-                            case "link":
-                                _channel.Link = channelItem.InnerText;
-                                break;
-                            case "item":
-                                XmlNodeList itemList = channelItem.ChildNodes;
-                                _articles[_numberNewArticles] = new Item();
-                                foreach (XmlNode item in itemList)
-                                {
-                                    switch (item.Name)
-                                    {
-                                        case "title":
-                                            _articles[_numberNewArticles].Title = item.InnerText;
-                                            break;
-                                        case "description":
-                                            _articles[_numberNewArticles].Description = item.InnerText;
-                                            break;
-                                        case "link":
-                                            _articles[_numberNewArticles].Link = item.InnerText;
-                                            break;
-                                        case "copyright":
-                                            _articles[_numberNewArticles].CopyRight = item.InnerText;
-                                            break;
-                                        case "pubDate":
-                                            if (DateTime.Parse(item.InnerText) > _lastMessageDate)
-                                            {
-                                                _lastMessageDate = DateTime.Parse(item.InnerText);
-                                                _numberNewArticles++;
-                                                if (_numberNewArticles == 3)
-                                                {
-                                                    return;
-                                                }
-                                            }
-                                            break;
-                                    }
-                                }
-                                break;
-                        }
+                        _newMessages.Add(node);
                     }
                 }
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e.Message);
+                if (_checkFirstIter == 0)
+                {
+                    _newMessages.Add(nodesList[nodesList.Count - 1]);
+                    _checkFirstIter = 1;
+                }
+                _lastMessageDate = DateTime.Parse(nodesList[0].PubDate);
             }
         }
 
         public string CreateMessage()
         {
             StringBuilder sendString = new StringBuilder();
-            sendString.Append("RSS: " + _channel.Title + "\n");
-            sendString.Append("Содержание: " + _channel.Description + "\n");
-            sendString.Append("Ссылка на ресурс: " + _channel.Link + "\n");
-
-            foreach (Item article in _articles)
+            sendString.Append("А вот и пачка новых rss новостей\n\n\n");
+            foreach (Item article in _newMessages)
             {
                 sendString.Append("\n" + "____________________________________________" + "\n");
                 sendString.Append("Тема: " + article.Title + "\n");
@@ -182,18 +109,19 @@ namespace Rss2Email
 
             while (true)
             {
-                if (_numberNewArticles == 3)
+                if (_newMessages.Count != 0)
                 {
 
                     Mail.SendMail(CreateMessage(), recieverMail);
-                    _articles = new Item[3];
-                    _numberNewArticles = 0;
-                    Console.WriteLine("Three new articles was sent");
+                    _newMessages.Clear();
+                    _newMessages = new List<Item>();
+                    Console.WriteLine("New articles was sent");
                 }
                 else
                 {
-                    System.Threading.Thread.Sleep(10000);
+                    
                     ParseArticles(sourceURL);
+                    System.Threading.Thread.Sleep(10000);
                 }
             }
         }
